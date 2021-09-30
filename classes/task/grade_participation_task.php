@@ -44,17 +44,17 @@ class grade_participation_task extends \core\task\scheduled_task {
         $palestras = $DB->get_records_sql("
             select p.id, p.course, p.name, p.startdate, p.duration, p.checkinterval
             from {palestra} p
-              inner join {palestra_presence} pp on pp.palestraid = p.id
               inner join {course} c on c.id = p.course
             where
               (p.needsupdate = 1) and
               (c.visible = 1) and
-              ((c.startdate <= ?) and (c.enddate = 0 or c.enddate >= ?))
-              and ((p.startdate + (p.duration*60)) < ?)
-            group by p.id, p.course, p.name, p.startdate, p.duration, p.checkinterval
-            having max(pp.lastcheck) < ? - p.checkinterval*60
-
-        ", [$now, $now, $now, $now]);
+              ((c.startdate <= ?) and (c.enddate = 0 or c.enddate >= ?)) and
+              (select count(*)
+               from {palestra_presence} pp
+               where pp.palestraid = p.id and
+               (pp.lastcheck+(p.duration*60)) < ?
+              ) > 0
+        ", [$now, $now, $now]);
 
         mtrace(count($palestras)." palestras to grade...");
 

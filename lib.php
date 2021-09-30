@@ -207,10 +207,12 @@ function palestra_update_grades($palestra, $userid=0, $nullifnone=true) {
     global $CFG, $DB;
     require_once($CFG->libdir.'/gradelib.php');
 
+    $now = time();
+
     if ($userid) {
-        $presences = $DB->get_records("palestra_presence", array("palestraid"=>$palestra->id, "userid"=>$userid), 'userid, starttime, lastcheck');
+        $presences = $DB->get_records("palestra_presence", array("palestraid"=>$palestra->id, "userid"=>$userid), 'id, userid, starttime, lastcheck');
     } else {
-        $presences = $DB->get_records("palestra_presence", array("palestraid"=>$palestra->id), 'userid, starttime, lastcheck');
+        $presences = $DB->get_records_select("palestra_presence", "palestraid=? and lastcheck+? < ?", [$palestra->id, $palestra->duration*60, $now], 'userid, starttime',  'id, userid, starttime, lastcheck');
     }
 
     $audiences = array();
@@ -231,7 +233,9 @@ function palestra_update_grades($palestra, $userid=0, $nullifnone=true) {
             continue;
         }
         if ($presence->starttime < ($start + $minimal)) {
-            $end = $presence->lastcheck;
+            if ($end < $presence->lastcheck) {
+                $end = $presence->lastcheck;
+            }
         } else {
             $audiences[$user] = (isset($audiences[$user])?$audiences[$user]:0) + (max($end - $start, $minimal)/60);
             $start = $presence->starttime;
